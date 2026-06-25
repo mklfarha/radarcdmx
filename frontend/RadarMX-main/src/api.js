@@ -254,6 +254,7 @@ export async function fetchEstablishmentsNearbyLayer({
   codigoActividad,
   usoDeSuelo,
   municipio,
+  q,
   pageSize = 5000,
   offset = 0
 } = {}) {
@@ -291,6 +292,9 @@ export async function fetchEstablishmentsNearbyLayer({
   }
   if (typeof municipio === 'string' && municipio.trim() !== '') {
     params.set('municipio', municipio.trim());
+  }
+  if (typeof q === 'string' && q.trim() !== '') {
+    params.set('q', q.trim());
   }
 
   const payload = await fetchJSON(`${API_BASE}/establecimientos/nearby?${params.toString()}`);

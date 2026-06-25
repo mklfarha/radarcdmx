@@ -39,7 +39,16 @@
           <span>Análisis Territorial & Políticas Económicas - SEDECO</span>
         </div>
       </div>
-      
+      <div class="search-container">
+        <i data-lucide="search" class="search-icon"></i>
+        <input type="text" id="search-input" placeholder="Buscar por negocio o razón social..." autocomplete="off">
+        <div id="search-results-dropdown" class="search-results-dropdown" style="display: none;"></div>
+      </div>
+      <div class="header-actions">
+        <button id="btn-settings" class="btn-icon" title="Configurar Token Mapbox">
+          <i data-lucide="settings"></i>
+        </button>
+      </div>
     </header>
 
     <!-- Map Area (Fills the viewport background) -->
@@ -53,7 +62,11 @@
       </div>
 
       <!-- CONSOLIDATED LEFT CONTROL PANEL HUD (Floating on the map, left-top) -->
-      <div class="left-hud-panel">
+      <div class="left-hud-panel" id="left-hud-panel">
+        <!-- Close button for mobile views -->
+        <button class="close-hud-btn" id="close-hud-btn" title="Cerrar panel">
+          <i data-lucide="x"></i>
+        </button>
         
         <!-- Accordion Item 1: Filtros de Búsqueda -->
         <div class="hud-section active" id="hud-section-filters">
@@ -96,6 +109,29 @@
           </div>
         </div>
 
+        <!-- Accordion Item 2: Cargar CSV -->
+        <div class="hud-section" id="hud-section-uploader">
+          <div class="hud-section-header" onclick="toggleHudSection('uploader')">
+            <h4><i data-lucide="upload-cloud" class="text-primary"></i> Cargar CSV</h4>
+            <i data-lucide="chevron-down" class="toggle-icon"></i>
+          </div>
+          
+          <div class="hud-section-content">
+            <p style="font-size: 0.72rem; color: var(--text-muted); line-height: 1.4; margin-bottom: 0.4rem;">
+              Carga tus propias ubicaciones comerciales desde un archivo CSV con columnas de latitud y longitud.
+            </p>
+            
+            <div class="drop-zone" id="csv-drop-zone">
+              <i data-lucide="upload" class="drop-icon"></i>
+              <span>Arrastra tu archivo .csv aquí o haz clic para seleccionar</span>
+              <input type="file" id="csv-file-input" accept=".csv" style="display: none;">
+            </div>
+            
+            <div class="uploader-status" id="uploader-status" style="display: none;">
+              <span id="uploader-status-text">Procesando archivo...</span>
+            </div>
+          </div>
+        </div>
 
       </div>
 
@@ -238,8 +274,12 @@
 
           <!-- STATE 3: Report Display (Zoning Compliance Audit) -->
           <div id="panel-report" class="panel-state">
+            <button id="btn-back-to-dashboard" class="btn btn-outline" style="width: 100%; margin-bottom: 1.25rem; display: flex; align-items: center; justify-content: center; gap: 0.5rem; border-radius: 12px; padding: 0.6rem 1rem;">
+              <i data-lucide="arrow-left"></i>
+              <span>Regresar al Dashboard</span>
+            </button>
+
             <div class="report-header">
-              
               <h2 id="report-company-name">Restaurante Masaryk Gourmet</h2>
               <div class="report-coords-bar mono">
                 <span>CLEE: <strong id="report-company-rfc"></strong></span>
@@ -364,6 +404,18 @@
           <button id="btn-save-token" class="btn btn-primary">Guardar Clave</button>
         </div>
       </div>
+    </div>
+
+    <!-- Mobile floating control triggers -->
+    <div id="mobile-hud-triggers" class="mobile-hud-triggers">
+      <button id="btn-mobile-filters" class="btn btn-primary btn-mobile-trigger">
+        <i data-lucide="sliders-horizontal"></i>
+        <span>Filtros y Carga</span>
+      </button>
+      <button id="btn-mobile-sidebar" class="btn btn-primary btn-mobile-trigger">
+        <i data-lucide="bar-chart-3"></i>
+        <span>Dashboard</span>
+      </button>
     </div>
   </div>
 

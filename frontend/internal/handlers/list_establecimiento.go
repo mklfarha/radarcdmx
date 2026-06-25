@@ -162,6 +162,7 @@ func (h *ListEstablecimientoNearbyHandler) ServeHTTP(w http.ResponseWriter, r *h
 	var codigoActividad *int64
 	usoDeSuelo := strings.TrimSpace(query.Get("uso_de_suelo"))
 	municipio := strings.TrimSpace(query.Get("municipio"))
+	q := strings.TrimSpace(query.Get("q"))
 
 	if raw := query.Get("codigo_actividad"); raw != "" {
 		parsed, parseErr := strconv.ParseInt(raw, 10, 64)
@@ -234,6 +235,11 @@ func (h *ListEstablecimientoNearbyHandler) ServeHTTP(w http.ResponseWriter, r *h
 	if municipio != "" {
 		whereClauses = append(whereClauses, "LOWER(JSON_UNQUOTE(JSON_EXTRACT(e.ubicacion, '$.municipio'))) = LOWER(?)")
 		args = append(args, municipio)
+	}
+
+	if q != "" {
+		whereClauses = append(whereClauses, "(LOWER(e.nombre) LIKE LOWER(?) OR LOWER(e.razon_social) LIKE LOWER(?))")
+		args = append(args, "%"+q+"%", "%"+q+"%")
 	}
 
 	finalQuery := listEstablecimientosNearbyQuerySelect + "\nWHERE " + strings.Join(whereClauses, "\n\tAND ") + "\nORDER BY " + orderBy + "\nLIMIT ?, ?"

@@ -22,6 +22,7 @@ let currentChart = null;
 let auditHistory = JSON.parse(localStorage.getItem('radar_history')) || [];
 let dynamicSectorCatalog = null;
 let currentActividadOptions = [];
+let uploadedGeoJSON = null;
 
 // --- ELEMENTOS DE LA INTERFAZ DE USUARIO ---
 const elBtnSettings = document.getElementById('btn-settings');
@@ -109,6 +110,19 @@ const elHistoryItems = document.getElementById('history-items');
 const elCloseSidebarBtn = document.getElementById('close-sidebar-btn');
 const elDashboardSidebar = document.getElementById('dashboard-sidebar');
 
+// Elementos de UI Móvil adicionales
+const elLeftHudPanel = document.getElementById('left-hud-panel');
+const elCloseHudBtn = document.getElementById('close-hud-btn');
+const elBtnMobileFilters = document.getElementById('btn-mobile-filters');
+const elBtnMobileSidebar = document.getElementById('btn-mobile-sidebar');
+
+// Elementos de Buscador Inteligente
+const elSearchInput = document.getElementById('search-input');
+const elSearchResultsDropdown = document.getElementById('search-results-dropdown');
+
+// Botón de regresar al dashboard
+const elBtnBackToDashboard = document.getElementById('btn-back-to-dashboard');
+
 let lastAuditData = null; // Guardará el último reporte generado
 
 // --- INICIALIZACIÓN ---
@@ -135,6 +149,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   initStep('mapa', () => initMap());
+  initStep('responsivo-movil', () => {
+    if (window.innerWidth <= 768) {
+      elDashboardSidebar?.classList.add('collapsed');
+      elLeftHudPanel?.classList.add('collapsed');
+    }
+  });
   initStep('comparador', () => updateBoroughComparison());
   initStep('eventos', () => registerEventListeners());
 
@@ -643,6 +663,8 @@ function handleCSVFileUpload(file) {
         throw new Error('No se encontraron coordenadas lat/lng válidas en el CSV.');
       }
 
+      uploadedGeoJSON = geojsonData;
+
       // Actualizar capa en el mapa
       if (map) {
         map.getSource('uploaded-source').setData(geojsonData);
@@ -925,9 +947,176 @@ function registerEventListeners() {
   });
  
 
-  elCloseSidebarBtn.addEventListener('click', () => {
+  elCloseSidebarBtn?.addEventListener('click', () => {
     elDashboardSidebar.classList.add('collapsed');
   });
+
+  // Regresar al dashboard general (empty state)
+  elBtnBackToDashboard?.addEventListener('click', () => {
+    switchStatePanel('empty');
+    if (currentMarker) {
+      currentMarker.remove();
+      currentMarker = null;
+    }
+    // Animación para regresar el mapa al zoom y centro original
+    if (map) {
+      map.flyTo({
+        center: [-99.155, 19.420],
+        zoom: 11.8,
+        pitch: 15,
+        essential: true,
+        duration: 1000
+      });
+    }
+  });
+
+  // Clic en la "X" del panel de filtros móvil para cerrarlo
+  elCloseHudBtn?.addEventListener('click', () => {
+    elLeftHudPanel?.classList.add('collapsed');
+  });
+
+  // Botón flotante móvil para alternar filtros
+  elBtnMobileFilters?.addEventListener('click', () => {
+    elLeftHudPanel?.classList.toggle('collapsed');
+    if (!elLeftHudPanel?.classList.contains('collapsed')) {
+      elDashboardSidebar?.classList.add('collapsed'); // Cerrar el otro para evitar solapamientos
+    }
+  });
+
+  // Botón flotante móvil para alternar dashboard
+  elBtnMobileSidebar?.addEventListener('click', () => {
+    elDashboardSidebar?.classList.toggle('collapsed');
+    if (!elDashboardSidebar?.classList.contains('collapsed')) {
+      elLeftHudPanel?.classList.add('collapsed'); // Cerrar el otro para evitar solapamientos
+    }
+  });
+
+  // --- CARGADOR DE CSV (EVENT LISTENERS) ---
+  // Clic en la zona de drop abre el selector de archivos
+  elDropZone?.addEventListener('click', () => {
+    elFileInput?.click();
+  });
+
+  // Cambio en el input de archivo
+  elFileInput?.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (file) handleCSVFileUpload(file);
+  });
+
+  // Eventos de arrastrar y soltar
+  elDropZone?.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    elDropZone.classList.add('dragover');
+  });
+
+  elDropZone?.addEventListener('dragleave', () => {
+    elDropZone.classList.remove('dragover');
+  });
+
+  elDropZone?.addEventListener('drop', (e) => {
+    e.preventDefault();
+    elDropZone.classList.remove('dragover');
+    const file = e.dataTransfer.files[0];
+    if (file) handleCSVFileUpload(file);
+  });
+
+  // Búsqueda inteligente
+  let searchDebounceTimer = null;
+  elSearchInput?.addEventListener('input', (e) => {
+    clearTimeout(searchDebounceTimer);
+    const queryText = e.target.value.trim();
+    if (!queryText) {
+      if (elSearchResultsDropdown) {
+        elSearchResultsDropdown.innerHTML = '';
+        elSearchResultsDropdown.style.display = 'none';
+      }
+      return;
+    }
+    searchDebounceTimer = setTimeout(async () => {
+      try {
+        const center = map.getCenter();
+        
+        // Búsqueda en datos CSV cargados localmente
+        let localFeatures = [];
+        if (uploadedGeoJSON && uploadedGeoJSON.features) {
+          const lowerQuery = queryText.toLowerCase();
+          localFeatures = uploadedGeoJSON.features.filter(f => {
+            const name = (f.properties.name || f.properties.nombre || '').toLowerCase();
+            const sector = (f.properties.sector || f.properties.nombre_actividad || '').toLowerCase();
+            return name.includes(lowerQuery) || sector.includes(lowerQuery);
+          });
+        }
+
+        // Búsqueda en la base de datos (Go backend)
+        let backendFeatures = [];
+        try {
+          const results = await fetchEstablishmentsNearbyLayer({
+            lat: center.lat,
+            lng: center.lng,
+            radiusM: 50000,
+            q: queryText,
+            pageSize: 5
+          });
+          backendFeatures = results?.features || [];
+        } catch (backendErr) {
+          console.warn('Error al buscar en backend:', backendErr);
+        }
+
+        // Combinar resultados
+        const combined = [...localFeatures, ...backendFeatures].slice(0, 5);
+        renderSearchResults(combined);
+      } catch (err) {
+        console.error('Error al realizar búsqueda inteligente:', err);
+      }
+    }, 300);
+  });
+
+  // Cerrar dropdown al hacer clic fuera del buscador o dropdown
+  document.addEventListener('click', (e) => {
+    if (elSearchResultsDropdown && elSearchInput && !elSearchInput.contains(e.target) && !elSearchResultsDropdown.contains(e.target)) {
+      elSearchResultsDropdown.style.display = 'none';
+    }
+  });
+}
+
+function renderSearchResults(features) {
+  if (!elSearchResultsDropdown) return;
+  elSearchResultsDropdown.innerHTML = '';
+  
+  if (features.length === 0) {
+    elSearchResultsDropdown.innerHTML = '<div class="search-no-results">No se encontraron resultados</div>';
+    elSearchResultsDropdown.style.display = 'block';
+    return;
+  }
+  
+  features.forEach(feature => {
+    const props = feature.properties;
+    const coords = feature.geometry.coordinates;
+    
+    const itemEl = document.createElement('div');
+    itemEl.className = 'search-result-item';
+    itemEl.innerHTML = `
+      <div class="search-result-name">${props.nombre || props.name}</div>
+      <div class="search-result-desc">${props.nombre_actividad || props.sector || 'Establecimiento'} &bull; ${props.municipio || props.zone || ''}</div>
+    `;
+    
+    itemEl.addEventListener('click', () => {
+      if (elSearchInput) elSearchInput.value = '';
+      elSearchResultsDropdown.style.display = 'none';
+      
+      // Mover cámara y disparar auditoría
+      triggerComplianceAudit(coords[1], coords[0], props);
+      
+      // Colapsar paneles en móviles
+      if (window.innerWidth <= 768) {
+        elLeftHudPanel?.classList.add('collapsed');
+      }
+    });
+    
+    elSearchResultsDropdown.appendChild(itemEl);
+  });
+  
+  elSearchResultsDropdown.style.display = 'block';
 }
 
 // --- UTILIDADES ---
@@ -1544,6 +1733,10 @@ async function applyFilters({ recenter = false } = {}) {
   //    provocaría un bucle (fitBounds -> moveend -> applyFilters -> fitBounds)
   //    que aleja el zoom de forma indefinida.
   if (!recenter) return;
+
+  if (window.innerWidth <= 768) {
+    elLeftHudPanel?.classList.add('collapsed');
+  }
 
   if (filteredFeatures.length > 0) {
     const coordinates = filteredFeatures.map(f => f.geometry.coordinates);
