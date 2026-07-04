@@ -56,7 +56,7 @@
       <div class="left-hud-panel">
         
         <!-- Accordion Item 1: Filtros de Búsqueda -->
-        <div class="hud-section active" id="hud-section-filters">
+        <div class="hud-section" id="hud-section-filters">
           <div class="hud-section-header" onclick="toggleHudSection('filters')">
             <h4><i data-lucide="filter" class="text-primary"></i> Filtros de Búsqueda</h4>
             <i data-lucide="chevron-down" class="toggle-icon"></i>
@@ -92,6 +92,12 @@
               <label for="filter-suelo" class="hud-label" style="font-size: 0.65rem; text-transform: uppercase; color: var(--text-muted); letter-spacing: 1px; font-weight: 600;">Uso de Suelo (PDDU)</label>
               <select id="filter-suelo" class="glass-select w-full" style="font-size:0.78rem; padding:0.4rem 0.8rem; height:36px; width: 100%;">                
               </select>
+            </div>
+
+            <!-- Toggle Heatmap for Market Saturation -->
+            <div class="filter-group" style="display: flex; flex-direction: row; align-items: center; gap: 0.5rem; margin-top: 0.5rem; border-top: 1px solid var(--border-glass); padding-top: 0.8rem;">
+              <input type="checkbox" id="toggle-heatmap" style="width: 16px; height: 16px; accent-color: var(--color-primary); cursor: pointer;">
+              <label for="toggle-heatmap" class="hud-label" style="font-size: 0.72rem; color: var(--text-main); font-weight: 600; cursor: pointer; text-transform: none; letter-spacing: 0;">Ver Mapa de Calor (Saturación)</label>
             </div>
           </div>
         </div>
@@ -172,22 +178,42 @@
                 </div>
               </div>
 
-              <!-- Comparison Card Grid -->
-              <div class="compare-results-grid">                
-                <div class="compare-row">
-                  <div class="compare-col-val" id="comp-val-est-a">--</div>
-                  <div class="compare-col-lbl">Establecimientos</div>
-                  <div class="compare-col-val" id="comp-val-est-b">--</div>
-                </div>               
-                <div class="compare-row">
-                  <div class="compare-col-val" id="comp-val-comp-a">--%</div>
-                  <div class="compare-col-lbl">Cumplimiento SEDUVI</div>
-                  <div class="compare-col-val" id="comp-val-comp-b">--%</div>
+              <!-- Comparison Card Grid (Premium visual cards) -->
+              <div class="compare-results-grid" style="gap: 0.8rem;">                
+                <!-- Alcaldía A Card -->
+                <div style="display: flex; flex-direction: column; gap: 0.5rem; padding: 0.8rem; background: rgba(159, 34, 65, 0.03); border: 1px solid var(--border-glass); border-radius: 12px;">
+                  <h5 id="compare-name-a" style="font-weight: 700; color: var(--color-primary); font-size: 0.85rem; margin: 0;">Alcaldía A</h5>
+                  <div style="display: flex; justify-content: space-between; font-size: 0.75rem;">
+                    <span>Comercios: <strong id="comp-val-est-a" class="mono">--</strong></span>
+                    <span>Empleos: <strong id="comp-val-emp-a" class="mono">--</strong></span>
+                  </div>
+                  <div style="display: flex; flex-direction: column; gap: 0.2rem; margin-top: 0.2rem;">
+                    <div style="display: flex; justify-content: space-between; font-size: 0.7rem; color: var(--text-muted);">
+                      <span>Cumplimiento Uso de Suelo</span>
+                      <span id="comp-val-comp-a" style="font-weight:600; color: var(--color-primary);">--%</span>
+                    </div>
+                    <div class="progress-bar-container" style="height: 4px; background: rgba(0,0,0,0.05);">
+                      <div class="progress-bar" id="comp-bar-a" style="width: 0%; height: 100%;"></div>
+                    </div>
+                  </div>
                 </div>
-                <div class="compare-row">
-                  <div class="compare-col-val" id="comp-val-emp-a">--</div>
-                  <div class="compare-col-lbl">Trabajadores (aprox.)</div>
-                  <div class="compare-col-val" id="comp-val-emp-b">--</div>
+
+                <!-- Alcaldía B Card -->
+                <div style="display: flex; flex-direction: column; gap: 0.5rem; padding: 0.8rem; background: rgba(188, 60, 88, 0.03); border: 1px solid var(--border-glass); border-radius: 12px;">
+                  <h5 id="compare-name-b" style="font-weight: 700; color: var(--color-secondary); font-size: 0.85rem; margin: 0;">Alcaldía B</h5>
+                  <div style="display: flex; justify-content: space-between; font-size: 0.75rem;">
+                    <span>Comercios: <strong id="comp-val-est-b" class="mono">--</strong></span>
+                    <span>Empleos: <strong id="comp-val-emp-b" class="mono">--</strong></span>
+                  </div>
+                  <div style="display: flex; flex-direction: column; gap: 0.2rem; margin-top: 0.2rem;">
+                    <div style="display: flex; justify-content: space-between; font-size: 0.7rem; color: var(--text-muted);">
+                      <span>Cumplimiento Uso de Suelo</span>
+                      <span id="comp-val-comp-b" style="font-weight:600; color: var(--color-secondary);">--%</span>
+                    </div>
+                    <div class="progress-bar-container" style="height: 4px; background: rgba(0,0,0,0.05);">
+                      <div class="progress-bar" id="comp-bar-b" style="width: 0%; height: 100%; background: var(--color-secondary);"></div>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -321,10 +347,98 @@
               <div class="compliance-alerts-list" id="compliance-alerts-list" style="margin-top: 1rem;">
                 <!-- Will be populated dynamically with compliance report cards -->
               </div>
+
+              <!-- Export Ficha Oficial as PDF -->
+              <button id="btn-export-pdf" class="btn btn-outline w-full" style="margin-top: 1.2rem; height: 38px; border-color: var(--color-primary); color: var(--color-primary); font-weight: 600;">
+                <i data-lucide="file-text" style="width: 16px; height: 16px;"></i> Exportar Ficha Oficial (PDF)
+              </button>
             </section>
 
            
 
+          </div>
+
+          <!-- STATE 4: Economic & Zoning Simulator for New Businesses -->
+          <div id="panel-simulator" class="panel-state">
+            <div class="report-header" style="position: relative;">
+              <h2 style="font-size: 1.3rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.4rem;">Simulador de Negocio</h2>
+              <div class="report-coords-bar mono" style="font-size: 0.72rem; color: var(--text-muted);">
+                <span>Lat: <strong id="sim-lat" style="color: var(--color-primary);">0.00000</strong></span>
+                <span>Lng: <strong id="sim-lng" style="color: var(--color-primary);">-0.00000</strong></span>
+              </div>
+            </div>
+
+            <!-- Form section -->
+            <section class="report-section" style="display: flex; flex-direction: column; gap: 0.8rem; border-bottom: 1px solid var(--border-glass); padding-bottom: 1.2rem;">
+              <h3 class="section-title" style="font-size: 0.9rem; font-weight: 600; display: flex; align-items: center; gap: 0.4rem; color: var(--text-main);">
+                <i data-lucide="settings" style="color: var(--color-primary); width: 16px; height: 16px;"></i>
+                Parámetros del Proyecto
+              </h3>
+
+              <div class="filter-group" style="display: flex; flex-direction: column; gap: 0.25rem;">
+                <label for="sim-sector" class="hud-label" style="font-size: 0.65rem; text-transform: uppercase; color: var(--text-muted); letter-spacing: 1px; font-weight: 600;">Giro / Sector Comercial</label>
+                <select id="sim-sector" class="glass-select w-full" style="font-size:0.78rem; padding:0.4rem 0.8rem; height:36px;">
+                  <option value="Alimentos">Alimentos y Bebidas (Restaurantes/Bares)</option>
+                  <option value="Comercio">Comercio Minorista (Tiendas/Retail)</option>
+                  <option value="Comercio Mayorista">Comercio Mayorista / Distribución</option>
+                  <option value="Servicios">Servicios Generales</option>
+                  <option value="Servicios Profesionales">Servicios Profesionales / Consultoría</option>
+                  <option value="Servicios Médicos">Servicios Médicos / Consultorios</option>
+                  <option value="Servicios Educativos">Servicios Educativos / Escuelas</option>
+                  <option value="Manufactura">Manufactura / Industrias</option>
+                </select>
+              </div>
+
+              <div class="filter-group" style="display: flex; flex-direction: column; gap: 0.25rem;">
+                <label for="sim-employees" class="hud-label" style="font-size: 0.65rem; text-transform: uppercase; color: var(--text-muted); letter-spacing: 1px; font-weight: 600;">Personal Estimado</label>
+                <input type="number" id="sim-employees" min="1" max="1000" value="5" class="glass-select w-full" style="font-size:0.78rem; padding:0.4rem 0.8rem; height:36px; color: var(--text-main); border: 1px solid var(--border-glass); border-radius: 20px; outline: none; background: var(--bg-glass);">
+              </div>
+
+              <button id="btn-run-simulation" class="btn btn-primary w-full" style="margin-top: 0.5rem; height: 38px;">
+                <i data-lucide="play" style="width: 16px; height: 16px;"></i> Simular Viabilidad e Impacto
+              </button>
+            </section>
+
+            <!-- Results section -->
+            <section id="sim-results" class="report-section" style="display: none; flex-direction: column; gap: 0.8rem; border-bottom: none; padding-top: 0.8rem;">
+              <h3 class="section-title" style="font-size: 0.9rem; font-weight: 600; display: flex; align-items: center; gap: 0.4rem; color: var(--text-main);">
+                <i data-lucide="bar-chart-2" style="color: var(--color-primary); width: 16px; height: 16px;"></i>
+                Resultados del Impacto
+              </h3>
+
+              <div class="metric-progress-card">
+                <div class="metric-card-header" style="font-size: 0.78rem;">
+                  <span>Uso de Suelo</span>
+                  <span id="sim-verdict-badge" class="risk-badge badge-low">Compatible</span>
+                </div>
+                <div class="progress-bar-container" style="margin-top: 0.5rem; height: 5px;">
+                  <div class="progress-bar" id="sim-verdict-progress" style="width: 100%"></div>
+                </div>
+              </div>
+
+              <div class="compliance-alerts-list" style="margin-top: 0.2rem;">
+                <div id="sim-verdict-card" class="dictamen-card s-ok" style="margin-bottom: 0;">
+                  <div class="dictamen-reason" id="sim-verdict-reason">Cargando...</div>
+                </div>
+              </div>
+
+              <div class="demographics-grid" style="margin-top: 0.4rem;">
+                <div class="demo-card" style="padding: 0.6rem 0.8rem;">
+                  <i data-lucide="users" class="demo-icon" style="width: 16px; height: 16px;"></i>
+                  <div class="demo-info">
+                    <span class="demo-label" style="font-size: 0.62rem;">Empleos Directos</span>
+                    <span class="demo-value" id="sim-res-employees" style="font-size: 0.8rem;">5</span>
+                  </div>
+                </div>
+                <div class="demo-card" style="padding: 0.6rem 0.8rem;">
+                  <i data-lucide="dollar-sign" class="demo-icon" style="width: 16px; height: 16px;"></i>
+                  <div class="demo-info">
+                    <span class="demo-label" style="font-size: 0.62rem;">Impuestos Est.</span>
+                    <span class="demo-value" id="sim-res-taxes" style="font-size: 0.78rem; white-space: nowrap;">$125,000 MXN</span>
+                  </div>
+                </div>
+              </div>
+            </section>
           </div>
 
           
