@@ -222,6 +222,16 @@ async function initMap() {
       await loadMapLayers();
     });
 
+    // Simulador al hacer clic en espacio vacío del mapa
+    map.on('click', (e) => {
+      const features = map.queryRenderedFeatures(e.point, {
+        layers: ['establishments-layer', 'markets-layer', 'uploaded-layer']
+      });
+      if (features.length > 0) return;
+
+      triggerNewBusinessSimulator(e.lngLat.lat, e.lngLat.lng);
+    });
+
   } catch (error) {
     console.error('Error al iniciar MapLibre:', error);
   }
@@ -281,6 +291,51 @@ async function loadMapLayers() {
         'circle-color': '#802A95',        
         'circle-stroke-color': '#000000',
         'circle-stroke-width': 1
+      }
+    });
+
+    // Capa de Mapa de Calor de Comercios DENUE (Heatmap)
+    map.addLayer({
+      id: 'establishments-heatmap',
+      type: 'heatmap',
+      source: 'establishments-source',
+      layout: {
+        'visibility': 'none'
+      },
+      paint: {
+        'heatmap-weight': [
+          'interpolate',
+          ['linear'],
+          ['get', 'employees'],
+          0, 0,
+          300, 1
+        ],
+        'heatmap-intensity': [
+          'interpolate',
+          ['linear'],
+          ['zoom'],
+          0, 1,
+          16, 3
+        ],
+        'heatmap-color': [
+          'interpolate',
+          ['linear'],
+          ['heatmap-value'],
+          0, 'rgba(159, 34, 65, 0)',
+          0.2, 'rgba(6, 182, 212, 0.25)',
+          0.4, 'rgba(16, 185, 129, 0.55)',
+          0.6, 'rgba(245, 158, 11, 0.75)',
+          0.8, 'rgba(239, 68, 68, 0.85)',
+          1, 'rgba(159, 34, 65, 0.95)'
+        ],
+        'heatmap-radius': [
+          'interpolate',
+          ['linear'],
+          ['zoom'],
+          0, 3,
+          16, 25
+        ],
+        'heatmap-opacity': 0.85
       }
     });
 
@@ -521,6 +576,25 @@ function renderReport(data) {
   }
   elComplianceAlertsList.appendChild(dictamenCard);
   if (d) lucide.createIcons({ nodes: [dictamenCard] });
+
+  // Special Zone Alerts (Centro Histórico CDMX)
+  const isCentro = String(data.company.municipio).toLowerCase().includes('centro') || 
+                   String(data.company.direccion).toLowerCase().includes('centro') ||
+                   String(data.zoning.description).toLowerCase().includes('centro histórico');
+  
+  if (isCentro) {
+    const alertCard = document.createElement('div');
+    alertCard.className = 'compliance-alert-item risk-medium';
+    alertCard.innerHTML = `
+      <i data-lucide="alert-triangle" class="compliance-alert-icon text-medium" style="width: 18px; height: 18px; color: var(--status-medium); margin-top: 0.1rem; flex-shrink: 0;"></i>
+      <div class="compliance-alert-content" style="display: flex; flex-direction: column; gap: 0.15rem;">
+        <div class="compliance-alert-title" style="font-weight: 600; color: var(--text-main);">Zona de Monumentos Históricos</div>
+        <div class="compliance-alert-desc" style="color: var(--text-muted); font-size: 0.75rem; line-height: 1.4;">Establecimiento ubicado en el Centro Histórico. Requiere visto bueno adicional del INAH y SEDUVI para modificaciones físicas o de anuncios.</div>
+      </div>
+    `;
+    elComplianceAlertsList.appendChild(alertCard);
+    lucide.createIcons({ nodes: [alertCard] });
+  }
 }
 
 // --- COMPARADOR TERRITORIAL ---
@@ -533,9 +607,6 @@ async function updateBoroughComparison() {
     if (el) el.textContent = value;
   };
 
-  // Establecimientos, empleados y desglose por sector provienen del backend
-  // (datos reales). Población, mercados y cumplimiento siguen estimándose con
-  // fetchBoroughStats mientras no existan endpoints dedicados.
   const [comparison, statsA, statsB] = await Promise.all([
     fetchCompareMunicipios(bA, bB),
     fetchBoroughStats(bA),
@@ -545,25 +616,28 @@ async function updateBoroughComparison() {
   const compareA = comparison?.[0] || null;
   const compareB = comparison?.[1] || null;
 
-  // Población (estimada)
-  if (statsA) setText('comp-val-pop-a', statsA.population.toLocaleString('es-MX'));
-  if (statsB) setText('comp-val-pop-b', statsB.population.toLocaleString('es-MX'));
+  // Set Names
+  setText('compare-name-a', bA);
+  setText('compare-name-b', bB);
 
-  // Establecimientos (reales si hay backend, si no fallback estimado)
+  // Establecimientos
   const estA = compareA ? compareA.total_establecimientos : statsA?.totalEstablishments;
   const estB = compareB ? compareB.total_establecimientos : statsB?.totalEstablishments;
   if (estA != null) setText('comp-val-est-a', Number(estA).toLocaleString('es-MX'));
   if (estB != null) setText('comp-val-est-b', Number(estB).toLocaleString('es-MX'));
 
-  // Mercados (estimado)
-  if (statsA) setText('comp-val-mkt-a', statsA.publicMarkets);
-  if (statsB) setText('comp-val-mkt-b', statsB.publicMarkets);
-
   // Cumplimiento SEDUVI (estimado)
-  if (statsA) setText('comp-val-comp-a', `${statsA.complianceRate}%`);
-  if (statsB) setText('comp-val-comp-b', `${statsB.complianceRate}%`);
+  const compA = statsA ? statsA.complianceRate : 100;
+  const compB = statsB ? statsB.complianceRate : 100;
+  setText('comp-val-comp-a', `${compA}%`);
+  setText('comp-val-comp-b', `${compB}%`);
 
-  // Trabajadores aproximados (reales si hay backend, si no fallback estimado)
+  const barA = document.getElementById('comp-bar-a');
+  const barB = document.getElementById('comp-bar-b');
+  if (barA) barA.style.width = `${compA}%`;
+  if (barB) barB.style.width = `${compB}%`;
+
+  // Trabajadores aproximados
   const empA = compareA ? compareA.empleados_aproximados : statsA?.activeEmployees;
   const empB = compareB ? compareB.empleados_aproximados : statsB?.activeEmployees;
   if (empA != null) setText('comp-val-emp-a', Number(empA).toLocaleString('es-MX'));
@@ -928,6 +1002,142 @@ function registerEventListeners() {
   elCloseSidebarBtn.addEventListener('click', () => {
     elDashboardSidebar.classList.add('collapsed');
   });
+
+  // Toggle Heatmap Layer Event Listener
+  const elToggleHeatmap = document.getElementById('toggle-heatmap');
+  elToggleHeatmap?.addEventListener('change', (e) => {
+    const checked = e.target.checked;
+    if (map) {
+      if (checked) {
+        map.setLayoutProperty('establishments-heatmap', 'visibility', 'visible');
+        map.setLayoutProperty('establishments-layer', 'visibility', 'none');
+      } else {
+        map.setLayoutProperty('establishments-heatmap', 'visibility', 'none');
+        map.setLayoutProperty('establishments-layer', 'visibility', 'visible');
+      }
+    }
+  });
+
+  // Run Economic & Zoning Simulation button click
+  const elBtnRunSimulation = document.getElementById('btn-run-simulation');
+  elBtnRunSimulation?.addEventListener('click', async () => {
+    if (!currentSimCoords) return;
+
+    const sector = document.getElementById('sim-sector').value;
+    const employees = parseInt(document.getElementById('sim-employees').value, 10) || 5;
+
+    // Run land use audit simulation
+    const auditReport = await performLandUseAudit(currentSimCoords.lat, currentSimCoords.lng, sector);
+
+    // Update simulation results in UI
+    const badge = document.getElementById('sim-verdict-badge');
+    const progress = document.getElementById('sim-verdict-progress');
+    const reason = document.getElementById('sim-verdict-reason');
+    const card = document.getElementById('sim-verdict-card');
+
+    const compliant = auditReport.compliant;
+
+    badge.textContent = compliant ? 'Compatible' : 'Incompatible';
+    badge.className = `risk-badge ${compliant ? 'badge-low' : 'badge-high'}`;
+
+    progress.style.width = compliant ? '100%' : '35%';
+    progress.className = `progress-bar ${compliant ? '' : 'bg-high'}`;
+
+    card.className = `dictamen-card ${compliant ? 's-ok' : 's-fail'}`;
+    reason.textContent = auditReport.reason;
+
+    document.getElementById('sim-res-employees').textContent = employees;
+    
+    // Tax contribution formula: employees * $25,000 MXN/year
+    const taxesVal = employees * 25000;
+    document.getElementById('sim-res-taxes').textContent = `$${taxesVal.toLocaleString('es-MX')} MXN/año`;
+
+    document.getElementById('sim-results').style.display = 'flex';
+  });
+
+  // Export official report as PDF window print
+  const elBtnExportPdf = document.getElementById('btn-export-pdf');
+  elBtnExportPdf?.addEventListener('click', () => {
+    if (!lastAuditData) return;
+
+    const printWindow = window.open('', '_blank', 'width=800,height=900');
+    const d = lastAuditData;
+
+    const isCompliant = d.zoning.compliant;
+    const verdictText = isCompliant ? 'COMPATIBLE' : 'INCOMPATIBLE';
+    const verdictColor = isCompliant ? '#10b981' : '#dc2626';
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Ficha Oficial de Dictamen Territorial - ${d.company.nombre}</title>
+        <style>
+          body { font-family: 'Outfit', sans-serif; padding: 2rem; color: #2C1619; line-height: 1.5; }
+          .header { display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #9F2241; padding-bottom: 1rem; margin-bottom: 2rem; }
+          .title { font-size: 1.5rem; font-weight: 700; color: #9F2241; margin: 0; }
+          .subtitle { font-size: 0.85rem; color: #7A6266; }
+          .badge { display: inline-block; padding: 0.4rem 1rem; border-radius: 4px; font-weight: 700; color: #fff; background-color: ${verdictColor}; }
+          .section { margin-bottom: 1.5rem; }
+          .section-title { font-size: 1.1rem; font-weight: 600; border-bottom: 1px solid rgba(159,34,65,0.15); padding-bottom: 0.3rem; margin-bottom: 0.8rem; color: #9F2241; }
+          .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; }
+          .card { padding: 0.8rem; background: rgba(0,0,0,0.02); border: 1px solid rgba(0,0,0,0.05); border-radius: 8px; }
+          .label { font-size: 0.75rem; color: #7A6266; text-transform: uppercase; }
+          .value { font-size: 0.9rem; font-weight: 600; }
+          .reason-box { padding: 1rem; border-radius: 8px; font-style: italic; background: ${isCompliant ? 'rgba(16,185,129,0.05)' : 'rgba(239,68,68,0.05)'}; border-left: 4px solid ${verdictColor}; }
+          .footer { text-align: center; font-size: 0.75rem; color: #7A6266; border-top: 1px dashed rgba(0,0,0,0.1); padding-top: 1rem; margin-top: 3rem; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div>
+            <h1 class="title">Ficha Oficial de Dictamen Territorial</h1>
+            <span class="subtitle">Secretaría de Desarrollo Económico (SEDECO) - Ciudad de México</span>
+          </div>
+          <div class="badge">${verdictText}</div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">Datos del Establecimiento (DENUE)</div>
+          <div class="grid">
+            <div class="card"><div class="label">Razón Social</div><div class="value">${d.company.nombre}</div></div>
+            <div class="card"><div class="label">CLEE / RFC</div><div class="value">${d.company.clee}</div></div>
+            <div class="card"><div class="label">Giro Comercial</div><div class="value">${d.company.nombre_actividad}</div></div>
+            <div class="card"><div class="label">Rango de Empleados</div><div class="value">${d.company.per_ocu} personas</div></div>
+            <div class="card"><div class="label">Alcaldía / Municipio</div><div class="value">${d.company.municipio}</div></div>
+            <div class="card"><div class="label">Dirección</div><div class="value">${d.company.direccion || '—'}</div></div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">Dictamen de Zonificación (SEDUVI PDDU)</div>
+          <div class="grid" style="margin-bottom: 1rem;">
+            <div class="card"><div class="label">Uso de Suelo Registrado</div><div class="value">${d.zoning.code}</div></div>
+            <div class="card"><div class="label">Estatus de Compatibilidad</div><div class="value" style="color: ${verdictColor}; font-weight: 700;">${verdictText}</div></div>
+          </div>
+          <div class="reason-box">
+            <strong>Fundamento del dictamen:</strong><br>
+            ${d.zoning.reason}
+          </div>
+        </div>
+
+        <div class="footer">
+          Documento emitido con fines informativos y de planeación por el sistema unificado Radar CDMX.<br>
+          Fecha de emisión: ${new Date(d.timestamp).toLocaleString('es-MX')} · Identificador: ${d.company.clee}
+        </div>
+
+        <script>
+          window.onload = function() {
+            window.print();
+          };
+        </script>
+      </body>
+      </html>
+    `;
+
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+  });
 }
 
 // --- UTILIDADES ---
@@ -963,13 +1173,53 @@ function switchStatePanel(state) {
   panelLoading.classList.remove('active');
   panelReport.classList.remove('active');
   
+  const elSim = document.getElementById('panel-simulator');
+  if (elSim) elSim.classList.remove('active');
+  
   if (state === 'empty') {
     panelEmpty.classList.add('active');
   } else if (state === 'loading') {
     panelLoading.classList.add('active');
   } else if (state === 'report') {
     panelReport.classList.add('active');
+  } else if (state === 'simulator') {
+    if (elSim) elSim.classList.add('active');
   }
+}
+
+// Global state variables for simulation
+let currentSimCoords = null;
+
+function triggerNewBusinessSimulator(lat, lng) {
+  currentSimCoords = { lat, lng };
+
+  // Place visual marker
+  if (currentMarker) currentMarker.remove();
+
+  const markerEl = document.createElement('div');
+  markerEl.className = 'custom-marker';
+  markerEl.innerHTML = '<div class="marker-pulse"></div><div class="marker-dot" style="background:#eab308; border-color:#fff;"></div>'; // Yellow dot for simulation
+
+  currentMarker = new maplibregl.Marker({ element: markerEl })
+    .setLngLat([lng, lat])
+    .addTo(map);
+
+  map.flyTo({
+    center: [lng, lat],
+    zoom: 15.5,
+    essential: true,
+    duration: 1000
+  });
+
+  elDashboardSidebar.classList.remove('collapsed');
+  switchStatePanel('simulator');
+
+  // Set coordinates in UI
+  document.getElementById('sim-lat').textContent = lat.toFixed(5);
+  document.getElementById('sim-lng').textContent = lng.toFixed(5);
+
+  // Reset simulator results
+  document.getElementById('sim-results').style.display = 'none';
 }
 
 function resetLoadingSteps() {

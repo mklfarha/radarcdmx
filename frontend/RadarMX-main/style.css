@@ -1295,8 +1295,16 @@ body {
   .main-header {
     flex-wrap: wrap;
     height: auto;
-    padding: 0.8rem;
-    gap: 0.8rem;
+    padding: 0.6rem 1rem;
+    gap: 0.5rem;
+  }
+  
+  .main-header h1 {
+    font-size: 1.1rem !important;
+  }
+  
+  .main-header span {
+    font-size: 0.68rem !important;
   }
   
   .search-container {
@@ -1320,10 +1328,10 @@ body {
     left: 0;
     right: 0;
     width: 100%;
-    height: 60%;
-    border-radius: 25px 25px 0 0;
+    height: 50%;
+    border-radius: 20px 20px 0 0;
     z-index: 10;
-    box-shadow: 0 -8px 32px 0 rgba(0, 0, 0, 0.5);
+    box-shadow: 0 -8px 32px 0 rgba(0, 0, 0, 0.35);
     border-left: none;
     border-right: none;
     border-bottom: none;
@@ -1339,13 +1347,67 @@ body {
   }
   
   .coordinate-hud {
-    bottom: calc(60% + 15px);
-    left: 15px;
+    display: none; /* Hide coordinate HUD on mobile for cleaner layout */
   }
   
-  .dashboard-sidebar.collapsed + .coordinate-hud,
-  .dashboard-sidebar.collapsed ~ .coordinate-hud {
-    bottom: 25px;
+  .map-instructions-toast {
+    position: absolute;
+    top: 80px;
+    left: 15px;
+    right: 65px;
+    width: auto;
+    transform: none;
+    font-size: 0.72rem;
+    padding: 0.5rem 0.8rem;
+    text-align: left;
+    justify-content: flex-start;
+  }
+  
+  .maplibregl-ctrl-top-left,
+  .mapboxgl-ctrl-top-left {
+    top: 80px !important;
+    right: 15px !important;
+    left: auto !important;
+    margin: 0 !important;
+  }
+  
+  .map-loading-pill {
+    bottom: 20px;
+    top: auto;
+    transform: translateX(-50%) translateY(6px);
+  }
+  
+  .map-loading-pill:not([hidden]) {
+    transform: translateX(-50%) translateY(0);
+  }
+  
+  .report-header h2 {
+    font-size: 1.2rem;
+    padding-right: 35px; /* Leave space for close button */
+  }
+
+  .demographics-grid {
+    grid-template-columns: 1fr; /* Stack stats vertically on mobile */
+  }
+  
+  .hud-section.active .hud-section-content {
+    max-height: 28vh;
+    padding: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .sidebar-scrollable-content {
+    padding: 1.2rem;
+    gap: 1.2rem;
+  }
+  
+  .compare-col-val {
+    font-size: 0.75rem;
+  }
+  
+  .compare-col-lbl {
+    font-size: 0.65rem;
   }
 }
 
@@ -1802,7 +1864,7 @@ body {
 /* Ajustes de responsivo para HUDs móviles y nuevo Panel Consolidado Accordion */
 .left-hud-panel {
   position: absolute;
-  top: 90px;
+  top: 120px;
   left: 25px;
   width: 300px;
   z-index: 5;
@@ -1810,7 +1872,7 @@ body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  max-height: calc(100vh - 210px);
+  max-height: calc(100vh - 240px);
   box-shadow: var(--shadow-premium);
   border: 1px solid var(--border-glass);
   background: var(--bg-glass-heavy);
@@ -1884,13 +1946,13 @@ body {
 
 @media (max-width: 768px) {
   .left-hud-panel {
-    position: relative;
-    top: auto;
-    left: 10px;
-    width: calc(100% - 20px);
-    margin-top: 10px;
-    margin-bottom: 10px;
-    max-height: none;
+    position: absolute;
+    top: 15px;
+    left: 15px;
+    width: calc(100% - 30px);
+    z-index: 8;
+    max-height: 80vh;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
   }
 }
 
